@@ -21,7 +21,7 @@ const formatTime = (totalSeconds) => {
 const getModeDurations = (mode, waterLevel) => {
   const baseDurations = {
     normal: { wash: 20, rinse: 13, spin: 9, drain: 3, total: 45 },
-    quick: { wash: 0.1, rinse: 0.1, spin: 0.2, drain: 0.2, total: 0.6 },
+    quick: { wash: 1, rinse: 1, spin: 1, drain: 1, total: 4 },
     blanket: { wash: 30, rinse: 15, spin: 9, drain: 6, total: 60 },
   };
 
@@ -157,6 +157,7 @@ export const useWashingMachine = () => {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
+    setCurrentState(null);
     setIcon(WashingMachine);
   };
 
@@ -236,15 +237,14 @@ export const useWashingMachine = () => {
         setMessage(
           `Machine is spinning. Time left: ${formatTime(spinEnd - elapsedTime)}`
         );
-      } else if (elapsedTime >= totalTime - 3) {
+      } else if (elapsedTime === totalTime && isRunning) {
         setMessage("Washing completed!");
-        setIcon(WashingMachine);
-        setCurrentState(null);
+        stopMachine()
 
       }
     } else if (timer === 0 && isRunning) {
       setMessage("Washing completed!");
-      setCurrentState(null);
+      stopMachine();
     }
   }, [isRunning, timer, functions, mode, waterLevel]);
 
@@ -258,10 +258,7 @@ export const useWashingMachine = () => {
     } else if (currentState === "drain") {
       playAudio(drainWater, audioRef);
     } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+      stopMachine();
     }
   }, [currentState, washAudio, spinAudio, drainWater]);
   
