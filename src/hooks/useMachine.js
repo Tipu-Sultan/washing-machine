@@ -1,25 +1,27 @@
 import { Disc3, Droplet, WashingMachine } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import spin from '../assets/spin.mp3'
-import wash from '../assets/wash.mp3'
-import drainWater from '../assets/drain.mp3'
-
-
+import spinAudio from "../assets/spin.mp3";
+import washAudio from "../assets/wash.mp3";
+import drainWater from "../assets/drain.mp3";
 
 // Helper function to convert seconds into hh:mm:ss format
 const formatTime = (totalSeconds) => {
-  const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
-  const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-  const secs = String(totalSeconds % 60).padStart(2, "0");
+  // Round the totalSeconds to remove any floating point precision errors
+  const roundedTotalSeconds = Math.round(totalSeconds);
+
+  const hrs = String(Math.floor(roundedTotalSeconds / 3600)).padStart(2, "0");
+  const mins = String(Math.floor((roundedTotalSeconds % 3600) / 60)).padStart(2, "0");
+  const secs = String(roundedTotalSeconds % 60).padStart(2, "0");
 
   return `${hrs}:${mins}:${secs}`;
 };
+
 
 // Helper function to get mode durations (in seconds)
 const getModeDurations = (mode, waterLevel) => {
   const baseDurations = {
     normal: { wash: 20, rinse: 13, spin: 9, drain: 3, total: 45 },
-    quick: { wash: 0.5, rinse: 0.5, spin: 0.5, drain: 0.5, total: 2 },
+    quick: { wash: 0.1, rinse: 0.1, spin: 0.2, drain: 0.2, total: 0.6 },
     blanket: { wash: 30, rinse: 15, spin: 9, drain: 6, total: 60 },
   };
 
@@ -56,16 +58,19 @@ const validateInputs = (mode, waterLevel, clothes) => {
 };
 
 const playAudio = (src, audioRef) => {
-  if (audioRef.current) {
-    audioRef.current.pause(); 
-    audioRef.current.currentTime = 0;
+  if (audioRef.current.src !== src) {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    audioRef.current.src = src; // Set the new source
   }
-  audioRef.current = new Audio(src);
   audioRef.current.play();
 };
 
+
 export const useWashingMachine = () => {
-  const audioRef = useRef(null);
+  const audioRef = useRef(new Audio());
   const [currentState, setCurrentState] = useState(null);
   const [Icon, setIcon] = useState(WashingMachine);
   const [mode, setMode] = useState("normal");
@@ -135,7 +140,8 @@ export const useWashingMachine = () => {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    setCurrentState(WashingMachine)
+    setCurrentState(null);
+    setIcon(WashingMachine);
   };
 
   const stopMachine = () => {
@@ -151,7 +157,7 @@ export const useWashingMachine = () => {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    setCurrentState(WashingMachine)
+    setIcon(WashingMachine);
   };
 
   const addClothes = (newClothes) => {
@@ -190,19 +196,22 @@ export const useWashingMachine = () => {
     if (isRunning && timer > 0) {
       const durations = getModeDurations(mode, waterLevel);
       if (!durations) return;
-  
+
       // Convert durations from minutes to seconds
       const washEnd = functions.includes("wash") ? durations.wash * 60 : 0;
-      const rinseEnd = functions.includes("rinse") ? washEnd + durations.rinse * 60 : washEnd;
+      const rinseEnd = functions.includes("rinse")
+        ? washEnd + durations.rinse * 60
+        : washEnd;
       const drainEnd = rinseEnd + durations.drain * 60; // Drain is always included
-      const spinEnd = functions.includes("spin") ? drainEnd + durations.spin * 60 : drainEnd;
+      const spinEnd = functions.includes("spin")
+        ? drainEnd + durations.spin * 60
+        : drainEnd;
       const totalTime = spinEnd; // Total time depends on the selected functions
-  
+
       const elapsedTime = totalTime - timer; // Time elapsed in seconds
-  
+
       // Determine the current stage based on elapsed time and selected functions
       if (elapsedTime < washEnd && functions.includes("wash")) {
-        playAudio(wash,audioRef);
         setCurrentState("wash");
         setIcon(WashingMachine);
         setMessage(
@@ -215,14 +224,13 @@ export const useWashingMachine = () => {
           `Machine is rinsing. Time left: ${formatTime(rinseEnd - elapsedTime)}`
         );
       } else if (elapsedTime < drainEnd) {
-        playAudio(drainWater,audioRef);
+        playAudio(drainWater, audioRef);
         setCurrentState("drain");
         setIcon(Droplet);
         setMessage(
           `Water is draining. Time left: ${formatTime(drainEnd - elapsedTime)}`
         );
       } else if (elapsedTime < spinEnd && functions.includes("spin")) {
-        playAudio(spin,audioRef);
         setCurrentState("spin");
         setIcon(Disc3);
         setMessage(
@@ -230,19 +238,32 @@ export const useWashingMachine = () => {
         );
       } else if (elapsedTime >= totalTime - 3) {
         setMessage("Washing completed!");
-        setCurrentState(WashingMachine);
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-        }
+        setIcon(WashingMachine);
+        setCurrentState(null);
+
       }
     } else if (timer === 0 && isRunning) {
       setMessage("Washing completed!");
-      setCurrentState(WashingMachine);
+      setCurrentState(null);
     }
-      
   }, [isRunning, timer, functions, mode, waterLevel]);
-  
+
+  useEffect(() => {
+    if (currentState === "wash") {
+      playAudio(washAudio, audioRef);
+    } else if (currentState === "rinse") {
+      playAudio(washAudio, audioRef);
+    } else if (currentState === "spin") {
+      playAudio(spinAudio, audioRef);
+    } else if (currentState === "drain") {
+      playAudio(drainWater, audioRef);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    }
+  }, [currentState, washAudio, spinAudio, drainWater]);
   
 
   return {
