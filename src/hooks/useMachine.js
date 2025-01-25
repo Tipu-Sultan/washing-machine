@@ -70,19 +70,25 @@ const playAudio = (src, audioRef) => {
 
 
 export const useWashingMachine = () => {
+  const storedState = JSON.parse(localStorage.getItem("machineState")) || {};
   const audioRef = useRef(new Audio());
-  const [currentState, setCurrentState] = useState(null);
+  const [currentState, setCurrentState] = useState(storedState.currentState || null);
   const [Icon, setIcon] = useState(WashingMachine);
-  const [mode, setMode] = useState("normal");
-  const [functions, setFunctions] = useState([]);
-  const [waterLevel, setWaterLevel] = useState(1);
-  const [clothes, setClothes] = useState([]);
-  const [timer, setTimer] = useState(0);
+  const [mode, setMode] = useState(storedState.mode || "normal");
+  const [functions, setFunctions] = useState(storedState.functions || []);
+  const [waterLevel, setWaterLevel] = useState(storedState.waterLevel || 1);
+  const [clothes, setClothes] = useState(storedState.clothes || []);
+  const [timer, setTimer] = useState(storedState?.timer  ||0);
   const [displayTimer, setDisplayTimer] = useState("00:00:00");
   const [error, setError] = useState(null);
-  const [message, setMessage] = useState("Machine is off.");
-  const [isRunning, setIsRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [message, setMessage] = useState(storedState.message || "Machine is off.");
+  const [isRunning, setIsRunning] = useState(storedState.isRunning || false);
+  const [isPaused, setIsPaused] = useState(storedState.isPaused || false);
+
+  useEffect(() => {
+    const machineState = {displayTimer,currentState,mode,functions,waterLevel,clothes,timer,message,isRunning,isPaused};
+    localStorage.setItem("machineState", JSON.stringify(machineState));
+  },[displayTimer,currentState, mode, functions, waterLevel, clothes, timer, message, isRunning, isPaused]);
 
   useEffect(() => {
     const realTimer = getModeDurations(mode, waterLevel);
@@ -106,8 +112,8 @@ export const useWashingMachine = () => {
 
     const confirmedTimer =
       selectedTime + (realTimer.waterTime + realTimer.drain);
-    setTimer(confirmedTimer * 60);
-    setDisplayTimer(formatTime(confirmedTimer));
+    setTimer(storedState?.timer || confirmedTimer * 60);
+    setDisplayTimer(formatTime(storedState?.timer || confirmedTimer));
   }, [mode, functions, waterLevel]);
 
   const toggleFunction = (fn) => {
@@ -140,7 +146,6 @@ export const useWashingMachine = () => {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    setCurrentState(null);
     setIcon(WashingMachine);
   };
 
