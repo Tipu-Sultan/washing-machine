@@ -16,7 +16,6 @@ const formatTime = (totalSeconds) => {
   return `${hrs}:${mins}:${secs}`;
 };
 
-
 // Helper function to get mode durations (in seconds)
 const getModeDurations = (mode, waterLevel) => {
   const baseDurations = {
@@ -97,23 +96,24 @@ export const useWashingMachine = () => {
       setTimer(0);
       return;
     }
-
+  
     if (functions.length === 0) {
       setError("Please select at least one function.");
       setTimer(0);
       return;
     }
-
+  
     setError(null);
-
+  
     const selectedTime = functions.reduce((total, func) => {
       return total + (realTimer[func] || 0);
     }, 0);
-
-    const confirmedTimer =
-      selectedTime + (realTimer.waterTime + realTimer.drain);
-    setTimer(storedState?.timer || confirmedTimer * 60);
-    setDisplayTimer(formatTime(storedState?.timer || confirmedTimer));
+  
+    const confirmedTimer = selectedTime + realTimer.waterTime + realTimer.drain;
+    const confirmedTimerSeconds = confirmedTimer * 60; // Convert minutes to seconds
+  
+    setTimer(confirmedTimerSeconds);
+    setDisplayTimer(formatTime(confirmedTimerSeconds));
   }, [mode, functions, waterLevel]);
 
   const toggleFunction = (fn) => {
